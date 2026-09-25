@@ -82,9 +82,20 @@ Las variables de entorno se gestionan a través de archivos `.env`. El repositor
 ```env
 # URL base del API Gateway
 VITE_API_BASE_URL=/api
+
+# Autenticacion: local | entra
+VITE_AUTH_MODE=local
+
+# Microsoft Entra ID (requerido cuando VITE_AUTH_MODE=entra)
+VITE_MSAL_CLIENT_ID=<FRONTEND_CLIENT_ID>
+VITE_MSAL_TENANT_ID=<TENANT_ID>
+VITE_MSAL_API_SCOPE=api://<API_CLIENT_ID>/access_as_user
+VITE_MSAL_REDIRECT_URI=http://localhost:3000
 ```
 
 > Las variables `VITE_` son resueltas por Vite en tiempo de compilación y quedan embebidas en el bundle estático. No existe inyección en runtime para una aplicación servida desde Nginx. Cualquier cambio de valor requiere un nuevo build. El archivo `.env.local` está incluido en `.gitignore` y debe distribuirse de forma segura fuera del control de versiones.
+
+El modo `local` mantiene el login actual del proyecto. El modo `entra` deja preparadas las variables para integrar MSAL con Microsoft Entra ID; requiere completar los identificadores reales del tenant, frontend y API antes de activarlo.
 
 ---
 
