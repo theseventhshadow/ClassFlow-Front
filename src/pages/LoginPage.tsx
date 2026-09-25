@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@context';
+import { isEntraAuthEnabled } from '@config/msal';
 import './LoginPage.css';
 
 export const LoginPage: React.FC = () => {
-  const { login, isLoading, error } = useAuth();
+  const { login, loginWithMicrosoft, isLoading, error } = useAuth();
   const navigate = useNavigate();
 
   const [email, setEmail] = useState('');
@@ -30,6 +31,23 @@ export const LoginPage: React.FC = () => {
     }
   };
 
+  const handleMicrosoftLogin = async () => {
+    try {
+      const loggedUser = await loginWithMicrosoft();
+      navigate(getDashboardPath(loggedUser.rol), { replace: true });
+    } catch {
+      // el error ya queda en el contexto
+    }
+  };
+
+  const getDashboardPath = (role: string): string => {
+    if (role === 'ADMINISTRATOR') return '/dashboard/admin';
+    if (role === 'TEACHER') return '/dashboard/teacher';
+    if (role === 'STUDENT') return '/dashboard/student';
+    if (role === 'GUARDIAN') return '/dashboard/guardian';
+    return '/dashboard';
+  };
+
   return (
     <div className="login-page">
       <div className="login-left">
@@ -46,8 +64,18 @@ export const LoginPage: React.FC = () => {
       <div className="login-right">
         <div className="login-form-box">
           <h2 className="login-welcome">Bienvenido</h2>
-          <p className="login-welcome-sub">Ingresa tus credenciales para continuar</p>
+          <p className="login-welcome-sub">
+            {isEntraAuthEnabled ? 'Accede con tu cuenta institucional' : 'Ingresa tus credenciales para continuar'}
+          </p>
 
+          {isEntraAuthEnabled ? (
+            <div className="login-form">
+              {error && <p className="login-error">{error}</p>}
+              <button type="button" className="login-submit-btn" onClick={handleMicrosoftLogin} disabled={isLoading}>
+                {isLoading ? 'Conectando...' : 'Continuar con Microsoft'}
+              </button>
+            </div>
+          ) : (
           <form onSubmit={handleSubmit} className="login-form">
             <div className="login-field">
               <label htmlFor="email">Usuario</label>
@@ -87,11 +115,12 @@ export const LoginPage: React.FC = () => {
               {isLoading ? 'Ingresando...' : 'Iniciar sesión'}
             </button>
           </form>
+          )}
 
-          <div className="login-recover">
+          {!isEntraAuthEnabled && <div className="login-recover">
             <span className="login-recover-divider">¿Problemas para ingresar?</span>
             <Link to="/forgot-password" className="login-recover-link">Recuperar contraseña</Link>
-          </div>
+          </div>}
         </div>
       </div>
     </div>

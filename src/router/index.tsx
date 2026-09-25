@@ -5,6 +5,7 @@ import { HomePage, NotFoundPage, LoginPage, ForgotPasswordPage, ResetPasswordPag
 import { ProtectedRoute } from '@components/common/ProtectedRoute';
 import { useAuth } from '@context';
 import { ROUTES, getDashboardRouteByRole } from '@constants';
+import { isEntraAuthEnabled } from '@config/msal';
 
 /** Redirects /dashboard to the correct role-specific dashboard */
 const DashboardRedirect: React.FC = () => {
@@ -19,8 +20,14 @@ const AppRouter: React.FC = () => {
       <Routes>
         <Route path="/" element={<Navigate to="/login" replace />} />
         <Route path={ROUTES.LOGIN} element={<LoginPage />} />
-        <Route path={ROUTES.FORGOT_PASSWORD} element={<ForgotPasswordPage />} />
-        <Route path={ROUTES.RESET_PASSWORD} element={<ResetPasswordPage />} />
+        <Route
+          path={ROUTES.FORGOT_PASSWORD}
+          element={isEntraAuthEnabled ? <Navigate to={ROUTES.LOGIN} replace /> : <ForgotPasswordPage />}
+        />
+        <Route
+          path={ROUTES.RESET_PASSWORD}
+          element={isEntraAuthEnabled ? <Navigate to={ROUTES.LOGIN} replace /> : <ResetPasswordPage />}
+        />
         <Route path={ROUTES.ACCESS_DENIED} element={<AccessDeniedPage />} />
 
         <Route

@@ -90,6 +90,11 @@ class AuthService {
     return this.normalizeUser(response);
   }
 
+  async getCurrentUser(): Promise<User> {
+    const response = await apiService.get<BackendUser>('/auth/me');
+    return this.normalizeUser(response);
+  }
+
   logout(): void {
     localStorage.removeItem('user_token');
     localStorage.removeItem('user_data');

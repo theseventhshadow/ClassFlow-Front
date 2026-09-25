@@ -3,6 +3,7 @@ import { useAuth } from '@context';
 import { Loading, Error as ErrorState, LogoutModal } from '@components/common';
 import { useDashboardData, useLogout } from '@hooks';
 import { UserRole, authService, courseService } from '@services';
+import { isEntraAuthEnabled } from '@config/msal';
 import { humanizeRole, getErrorMessage } from '@utils';
 import './AdminDashboard.css';
 
@@ -308,9 +309,11 @@ export const AdminDashboard: React.FC = () => {
             <button className="admin-btn admin-btn--secondary" onClick={openCourseModal}>
               + Nuevo curso
             </button>
-            <button className="admin-btn admin-btn--primary" onClick={openModal}>
-              + Nuevo usuario
-            </button>
+            {!isEntraAuthEnabled && (
+              <button className="admin-btn admin-btn--primary" onClick={openModal}>
+                + Nuevo usuario
+              </button>
+            )}
           </div>
         </header>
 
@@ -538,7 +541,7 @@ export const AdminDashboard: React.FC = () => {
         )}
       </main>
 
-      {showModal && (
+      {!isEntraAuthEnabled && showModal && (
         <div className="admin-modal-overlay" onClick={closeModal}>
           <div className="admin-modal" onClick={(e) => e.stopPropagation()}>
             <div className="admin-modal-header">
