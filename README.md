@@ -52,8 +52,8 @@ Aplicación web SPA (Single Page Application) desarrollada en React 18 con TypeS
 Clonar el repositorio e instalar las dependencias:
 
 ```bash
-git clone https://github.com/organizacion/classflow-frontend.git
-cd classflow-frontend
+git clone https://github.com/theseventhshadow/ClassFlow-Front.git
+cd ClassFlow-Front
 npm install
 ```
 
@@ -69,7 +69,7 @@ Completar los valores en `.env.local` según la sección [Variables de Entorno](
 npm run dev
 ```
 
-La aplicación estará disponible en `http://localhost:5173`.
+La aplicación estará disponible en `http://localhost:3000`.
 
 ---
 
@@ -81,16 +81,7 @@ Las variables de entorno se gestionan a través de archivos `.env`. El repositor
 
 ```env
 # URL base del API Gateway
-VITE_API_GATEWAY_URL=
-
-# URL base del BFF (Backend for Frontend)
-VITE_BFF_URL=
-
-# URL del endpoint WebSocket (STOMP)
-VITE_WS_URL=
-
-# Entorno de ejecución: development | staging | production
-VITE_APP_ENV=
+VITE_API_BASE_URL=/api
 ```
 
 > Las variables `VITE_` son resueltas por Vite en tiempo de compilación y quedan embebidas en el bundle estático. No existe inyección en runtime para una aplicación servida desde Nginx. Cualquier cambio de valor requiere un nuevo build. El archivo `.env.local` está incluido en `.gitignore` y debe distribuirse de forma segura fuera del control de versiones.
