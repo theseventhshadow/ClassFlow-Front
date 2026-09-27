@@ -28,5 +28,9 @@ const msalConfiguration: Configuration = {
 export const msalInstance = new PublicClientApplication(msalConfiguration);
 
 export const entraLoginRequest: PopupRequest = {
+  scopes: ['openid', 'profile', 'email', ...(hasRealValue(apiScope) ? [apiScope] : [])],
+};
+
+export const classFlowApiRequest: PopupRequest = {
   scopes: hasRealValue(apiScope) ? [apiScope] : [],
 };

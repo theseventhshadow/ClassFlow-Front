@@ -10,7 +10,7 @@ import { useMsal } from '@azure/msal-react';
 import { InteractionRequiredAuthError } from '@azure/msal-browser';
 
 import { User, userService, authService } from '@services';
-import { entraLoginRequest, isEntraAuthEnabled } from '@config/msal';
+import { classFlowApiRequest, entraLoginRequest, isEntraAuthEnabled } from '@config/msal';
 
 interface AuthContextType {
   user: User | null;
@@ -86,8 +86,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
 
   const loginWithMicrosoft = useCallback(async (): Promise<void> => {
     if (!isEntraAuthEnabled) {
-      setError('Microsoft Entra no está configurado.');
-      throw new Error('Microsoft Entra no está configurado.');
+      const message = 'Microsoft Entra no está configurado.';
+      setError(message);
+      throw new Error(message);
     }
 
     setIsLoading(true);
@@ -124,7 +125,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
 
       try {
         const response = await instance.acquireTokenSilent({
-          ...entraLoginRequest,
+          ...classFlowApiRequest,
           account,
         });
 
@@ -132,7 +133,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
       } catch (err) {
         if (err instanceof InteractionRequiredAuthError) {
           const response = await instance.acquireTokenPopup({
-            ...entraLoginRequest,
+            ...classFlowApiRequest,
             account,
           });
 
@@ -173,7 +174,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
       instance.getActiveAccount() || accounts[0];
     const authProvider = localStorage.getItem('auth_provider');
 
-    if (authProvider === 'password' || (!account && authProvider !== 'microsoft')) {
+    if (authProvider !== 'microsoft') {
       const token = localStorage.getItem('user_token');
       if (!token) {
         setUser(null);
