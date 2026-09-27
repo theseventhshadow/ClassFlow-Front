@@ -113,13 +113,11 @@ export const LoginPage: React.FC = () => {
 
           {error && <p className="login-error">{error}</p>}
 
-          {isEntraAuthEnabled && (
-            <div className="login-recover">
-              <button type="button" className="login-submit-btn" onClick={handleMicrosoftLogin} disabled={isLoading}>
-                {isLoading ? 'Conectando...' : 'Continuar con Microsoft'}
-              </button>
-            </div>
-          )}
+          <div className="login-recover">
+            <button type="button" className="login-submit-btn" onClick={handleMicrosoftLogin} disabled={isLoading}>
+              {isLoading ? 'Conectando...' : 'Continuar con Microsoft'}
+            </button>
+          </div>
 
           {!isEntraAuthEnabled && <div className="login-recover">
             <span className="login-recover-divider">¿Problemas para ingresar?</span>
