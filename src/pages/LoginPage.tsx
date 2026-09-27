@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@context';
 import { isEntraAuthEnabled } from '@config/msal';
 import './LoginPage.css';
 
 export const LoginPage: React.FC = () => {
-  const { login, loginWithMicrosoft, isLoading, error } = useAuth();
+  const { login, loginWithMicrosoft, isLoading, error, user } = useAuth();
   const navigate = useNavigate();
 
   const [email, setEmail] = useState('');
@@ -33,8 +33,7 @@ export const LoginPage: React.FC = () => {
 
   const handleMicrosoftLogin = async () => {
     try {
-      const loggedUser = await loginWithMicrosoft();
-      navigate(getDashboardPath(loggedUser.rol), { replace: true });
+      await loginWithMicrosoft();
     } catch {
       // el error ya queda en el contexto
     }
@@ -47,6 +46,12 @@ export const LoginPage: React.FC = () => {
     if (role === 'GUARDIAN') return '/dashboard/guardian';
     return '/dashboard';
   };
+
+  useEffect(() => {
+    if (user) {
+      navigate(getDashboardPath(user.rol), { replace: true });
+    }
+  }, [navigate, user]);
 
   return (
     <div className="login-page">
@@ -68,14 +73,6 @@ export const LoginPage: React.FC = () => {
             {isEntraAuthEnabled ? 'Accede con tu cuenta institucional' : 'Ingresa tus credenciales para continuar'}
           </p>
 
-          {isEntraAuthEnabled ? (
-            <div className="login-form">
-              {error && <p className="login-error">{error}</p>}
-              <button type="button" className="login-submit-btn" onClick={handleMicrosoftLogin} disabled={isLoading}>
-                {isLoading ? 'Conectando...' : 'Continuar con Microsoft'}
-              </button>
-            </div>
-          ) : (
           <form onSubmit={handleSubmit} className="login-form">
             <div className="login-field">
               <label htmlFor="email">Usuario</label>
@@ -109,12 +106,19 @@ export const LoginPage: React.FC = () => {
               </div>
             </div>
 
-            {error && <p className="login-error">{error}</p>}
-
             <button type="submit" className="login-submit-btn" disabled={isLoading}>
               {isLoading ? 'Ingresando...' : 'Iniciar sesión'}
             </button>
           </form>
+
+          {error && <p className="login-error">{error}</p>}
+
+          {isEntraAuthEnabled && (
+            <div className="login-recover">
+              <button type="button" className="login-submit-btn" onClick={handleMicrosoftLogin} disabled={isLoading}>
+                {isLoading ? 'Conectando...' : 'Continuar con Microsoft'}
+              </button>
+            </div>
           )}
 
           {!isEntraAuthEnabled && <div className="login-recover">

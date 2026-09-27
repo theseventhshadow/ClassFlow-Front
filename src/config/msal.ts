@@ -1,4 +1,4 @@
-import { PublicClientApplication, type Configuration, type PopupRequest } from '@azure/msal-browser';
+import { PublicClientApplication, type Configuration, type RedirectRequest } from '@azure/msal-browser';
 
 const tenantId = import.meta.env.VITE_MSAL_TENANT_ID || '';
 const clientId = import.meta.env.VITE_MSAL_CLIENT_ID || '';
@@ -22,12 +22,11 @@ const msalConfiguration: Configuration = {
   },
   cache: {
     cacheLocation: 'sessionStorage',
-    storeAuthStateInCookie: false,
   },
 };
 
 export const msalInstance = new PublicClientApplication(msalConfiguration);
 
-export const entraLoginRequest: PopupRequest = {
+export const entraLoginRequest: RedirectRequest = {
   scopes: hasRealValue(apiScope) ? [apiScope] : [],
 };

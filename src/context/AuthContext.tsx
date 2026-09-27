@@ -1,5 +1,6 @@
-import React, { createContext, ReactNode, useState, useCallback } from 'react';
+import React, { createContext, ReactNode, useState, useCallback, useEffect } from 'react';
 import { useMsal } from '@azure/msal-react';
+import { InteractionStatus } from '@azure/msal-browser';
 import { User, userService, authService } from '@services';
 import { entraLoginRequest, isEntraAuthEnabled } from '@config/msal';
 
@@ -9,7 +10,7 @@ interface AuthContextType {
   isLoading: boolean;
   error: string | null;
   login: (email: string, password: string) => Promise<User>;
-  loginWithMicrosoft: () => Promise<User>;
+  loginWithMicrosoft: () => Promise<void>;
   logout: () => void;
   updateProfile: (data: Partial<Omit<User, 'id' | 'rol' | 'createdAt'>>) => Promise<void>;
   validate: () => Promise<boolean>;
@@ -18,7 +19,7 @@ interface AuthContextType {
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const { instance, accounts } = useMsal();
+  const { instance, accounts, inProgress } = useMsal();
   const [user, setUser] = useState<User | null>(() => {
     const stored = localStorage.getItem('user_data');
     return stored ? (JSON.parse(stored) as User) : null;
@@ -32,6 +33,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     try {
       const response = await authService.login({ email, password });
       setUser(response.user);
+      localStorage.setItem('auth_provider', 'password');
       localStorage.setItem('user_token', response.token);
       localStorage.setItem('user_data', JSON.stringify(response.user));
       return response.user;
@@ -45,6 +47,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const logout = useCallback(() => {
     authService.logout();
+    localStorage.removeItem('auth_provider');
     setUser(null);
     setError(null);
     if (isEntraAuthEnabled) {
@@ -52,7 +55,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   }, [accounts, instance]);
 
-  const loginWithMicrosoft = useCallback(async (): Promise<User> => {
+  const loginWithMicrosoft = useCallback(async (): Promise<void> => {
     if (!isEntraAuthEnabled) {
       throw new Error('Microsoft Entra no esta configurado.');
     }
@@ -60,17 +63,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setIsLoading(true);
     setError(null);
     try {
-      const loginResult = await instance.loginPopup(entraLoginRequest);
-      instance.setActiveAccount(loginResult.account);
-      const tokenResult = await instance.acquireTokenSilent({
-        ...entraLoginRequest,
-        account: loginResult.account,
-      });
-      localStorage.setItem('user_token', tokenResult.accessToken);
-      const currentUser = await authService.getCurrentUser();
-      setUser(currentUser);
-      localStorage.setItem('user_data', JSON.stringify(currentUser));
-      return currentUser;
+      authService.logout();
+      setUser(null);
+      localStorage.setItem('auth_provider', 'microsoft');
+      await instance.loginRedirect(entraLoginRequest);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al iniciar sesión con Microsoft');
       throw err;
@@ -78,6 +74,44 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setIsLoading(false);
     }
   }, [instance]);
+
+  useEffect(() => {
+    if (!isEntraAuthEnabled || user || inProgress !== InteractionStatus.None) return;
+
+    const account = instance.getActiveAccount() ?? accounts[0];
+    if (!account) return;
+
+    let cancelled = false;
+
+    const restoreSession = async () => {
+      setIsLoading(true);
+
+      try {
+        instance.setActiveAccount(account);
+        const tokenResult = await instance.acquireTokenSilent({ ...entraLoginRequest, account });
+        const currentUser = await authService.getCurrentUser();
+
+        if (cancelled) return;
+
+        localStorage.setItem('auth_provider', 'microsoft');
+        localStorage.setItem('user_token', tokenResult.accessToken);
+        localStorage.setItem('user_data', JSON.stringify(currentUser));
+        setUser(currentUser);
+      } catch (err) {
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : 'Error al recuperar la sesión de Microsoft');
+        }
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
+    };
+
+    void restoreSession();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [accounts, inProgress, instance, user]);
 
   const updateProfile = useCallback(
     async (data: Partial<Omit<User, 'id' | 'rol' | 'createdAt'>>) => {
@@ -95,12 +129,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   );
 
   const validate = useCallback(async (): Promise<boolean> => {
-    if (isEntraAuthEnabled) {
-      const account = instance.getActiveAccount() ?? accounts[0];
-      if (!account) {
-        setUser(null);
-        return false;
-      }
+    const account = instance.getActiveAccount() ?? accounts[0];
+    const authProvider = localStorage.getItem('auth_provider');
+
+    if (isEntraAuthEnabled && account && authProvider !== 'password') {
       try {
         instance.setActiveAccount(account);
         const tokenResult = await instance.acquireTokenSilent({ ...entraLoginRequest, account });
