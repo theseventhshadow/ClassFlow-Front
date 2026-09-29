@@ -4,53 +4,61 @@ Esta guia resume lo implementado en `ClassFlow-Front` y lo que debe completar el
 
 ## Estado actual
 
-Ultimo commit de referencia: `0b90d9a`.
+La pantalla de login es **hibrida**:
 
-El frontend tiene dos modos:
+| Opcion | Cuando aparece | Que exige al backend |
+|---|---|---|
+| Correo y contrasena (principal) | Siempre, con recuperacion de contrasena | Endpoints locales de `ms-auth` (`/auth/login`, `/auth/validate`, etc.) y JWT local aceptado por gateway y BFF |
+| Continuar con Microsoft (segunda opcion) | Con `VITE_AUTH_MODE=entra` y variables `VITE_MSAL_*` validas | Tokens de Entra aceptados por gateway, BFF y `ms-auth` (`/auth/me`) |
 
-- `local`: conserva el login actual con email y contrasena para desarrollo.
-- `entra`: usa MSAL para autenticar en Microsoft Entra ID.
-
-El modo se controla con `VITE_AUTH_MODE` y por defecto es `local`.
+**Limitacion actual del backend:** `api-gateway`, `bff` y `ms-auth` tienen dos configuraciones de seguridad excluyentes (`@Profile("entra")` y `@Profile("!entra")`). Con el perfil `entra`, el backend responde `denyAll` (401 sin cuerpo) a `/api/auth/login`, `/register`, `/forgot-password`, `/reset-password` y `/change-password`, y el frontend muestra "El ingreso con correo y contrasena no esta habilitado en el servidor". Para que ambas opciones funcionen a la vez, el backend debe aceptar los dos tipos de token en un mismo perfil.
 
 ## Flujo Entra implementado
 
-Cuando `VITE_AUTH_MODE=entra` y existen valores validos:
-
 ```text
-React + MSAL
+React + MSAL (popup)
     |
-    | loginPopup
+    | 1. loginPopup -> login.microsoftonline.com
+    | 2. Microsoft redirige el popup a VITE_MSAL_REDIRECT_URI
+    | 3. main.tsx detecta la respuesta y la reenvia a la ventana principal
+    |    (broadcastResponseToMainFrame, requerido por MSAL v5)
     v
-Microsoft Entra ID
+access_token (scope access_as_user)
     |
-    | access_token
+    | Authorization: Bearer <access_token>
     v
-API Gateway de AWS / API backend
+API Gateway -> ms-auth: GET /api/auth/me
     |
     v
-GET /api/auth/me
+Perfil interno de ClassFlow (id, rol) -> dashboard del rol
 ```
 
 El frontend:
 
-1. Abre el login de Microsoft mediante MSAL.
-2. Obtiene un `access_token` para la API de ClassFlow.
-3. Adquiere el token silenciosamente cuando es posible.
-4. Lo envia como `Authorization: Bearer <access_token>` mediante Axios.
+1. Abre el login de Microsoft en un popup mediante MSAL.
+2. Cuando Microsoft devuelve el popup a la redirect URI, la app no se monta en el popup: solo reenvia la respuesta a la ventana principal, que cierra el popup.
+3. Obtiene un `access_token` para la API de ClassFlow, primero en silencio y con popup solo si Entra exige interaccion.
+4. Lo envia como `Authorization: Bearer <access_token>` en cada peticion (interceptor de Axios).
 5. Consulta `/api/auth/me` para obtener el usuario interno y su rol.
-6. Redirige al dashboard segun el rol local recibido.
+6. Redirige al dashboard segun el rol recibido. Un `401` posterior cierra la sesion local.
+
+## Alta de usuarios
+
+Microsoft solo autentica. El acceso y el rol los decide ClassFlow:
+
+- `ms-auth` busca la identidad `(tenant, oid)`. Si todavia no esta vinculada, busca un usuario interno cuyo correo coincida con `preferred_username`/`email` del token y lo vincula en ese primer login.
+- Si no existe el usuario interno, `/api/auth/me` responde `403` y el frontend muestra "La cuenta de Microsoft no esta habilitada en ClassFlow".
+- En usuarios invitados (B2B), el claim trae el correo de origen, no el UPN `#EXT#`. El usuario interno debe registrarse con ese correo (ejemplo: migracion `V9__add_teacher_evens_reneus.sql`).
 
 ## Archivos principales
 
-- `src/config/msal.ts`: configuracion MSAL y deteccion del modo Entra.
-- `src/main.tsx`: inicializacion de `MsalProvider`.
-- `src/context/AuthContext.tsx`: login popup, token silencioso, logout y validacion.
+- `src/config/msal.ts`: configuracion MSAL, deteccion del modo Entra, cuenta activa, obtencion del access token y deteccion de la respuesta de autorizacion en la URL.
+- `src/main.tsx`: inicializa MSAL y, en el popup, reenvia la respuesta a la ventana principal.
+- `src/context/AuthProvider.tsx`: validacion unica de la sesion al arrancar, login (contrasena o Microsoft), logout y cierre de sesion ante `401`.
+- `src/context/auth-context.ts`: contrato del contexto (`status`, `user`, acciones) y hook `useAuth`.
+- `src/services/api.service.ts`: envia el Bearer token segun el tipo de sesion y notifica los `401`.
 - `src/services/auth.service.ts`: consulta `/api/auth/me`.
-- `src/services/api.service.ts`: envia el Bearer token.
-- `src/pages/LoginPage.tsx`: muestra login local o boton Microsoft.
-- `src/router/index.tsx`: deshabilita recuperacion de contrasena en modo Entra.
-- `src/pages/admin/AdminDashboard.tsx`: oculta la creacion local de usuarios en modo Entra.
+- `src/pages/LoginPage.tsx`: login hibrido; correo y contrasena como opcion principal y Microsoft como segunda opcion.
 
 ## Variables necesarias
 
@@ -65,9 +73,35 @@ VITE_MSAL_API_SCOPE=api://<API_CLIENT_ID>/access_as_user
 VITE_MSAL_REDIRECT_URI=<REDIRECT_URI_REAL>
 ```
 
-Las variables `VITE_` se incorporan durante `npm run build`. Cambiar una variable requiere reconstruir la imagen Docker.
+Las variables `VITE_` se incorporan durante `npm run build`. Cambiar una variable requiere reconstruir la imagen Docker; el `Dockerfile` las recibe como `--build-arg`.
 
 No guardar `.env.local` ni secretos en Git.
+
+## Desarrollo local con Entra
+
+1. Levantar el backend con el perfil `entra` (en este entorno, `classflow-back-api-gateway` expone el puerto `18080`).
+2. En `.env.local`, ademas de las variables anteriores, dejar `VITE_API_BASE_URL` sin definir y apuntar el proxy de Vite a ese backend:
+
+   ```env
+   API_PROXY_TARGET=http://localhost:18080
+   ```
+
+3. Levantar el frontend en el puerto de la redirect URI registrada en Entra:
+
+   ```bash
+   npm run dev -- --port 3001
+   ```
+
+4. Abrir `http://localhost:3001` y pulsar **Continuar con Microsoft**.
+
+## Solucion de problemas
+
+| Sintoma | Causa | Solucion |
+|---|---|---|
+| El popup muestra ClassFlow en vez de Microsoft, o queda en "Conectando..." | La redirect URI no reenvia la respuesta a la ventana principal (MSAL v5) | Ya resuelto en `main.tsx`. Verificar que la app corre en el mismo origen que `VITE_MSAL_REDIRECT_URI` |
+| El navegador pide usuario y contrasena ("Autorizacion requerida") | `/api` apunta a un backend sin perfil `entra`, que rechaza el token con `WWW-Authenticate: Basic` | Apuntar `API_PROXY_TARGET` o `VITE_API_BASE_URL` al backend con perfil `entra` |
+| "La cuenta de Microsoft no esta habilitada en ClassFlow" | No existe un usuario interno con el correo del token | Dar de alta el usuario en `ms-auth` con ese correo |
+| "El navegador bloqueo la ventana de Microsoft" | Bloqueador de ventanas emergentes | Permitir ventanas emergentes para el sitio |
 
 ## Tareas del equipo de Entra ID
 
@@ -84,7 +118,6 @@ No guardar `.env.local` ni secretos en Git.
 7. Confirmar que los usuarios esten asignados en la aplicacion empresarial.
 8. Entregar `TENANT_ID`, `FRONTEND_CLIENT_ID`, `API_CLIENT_ID`, scope y redirect URI.
 
-El frontend no debe pedir contrasenas ni crear usuarios locales cuando Entra este activo.
 
 ## Tareas del equipo AWS
 
@@ -105,15 +138,24 @@ npm install
 npm run dev
 ```
 
-Build Docker:
+Build Docker (modo Entra):
 
 ```bash
-docker build -t classflow-frontend:local .
+docker build \
+  --build-arg VITE_AUTH_MODE=entra \
+  --build-arg VITE_API_BASE_URL=<URL_BASE_DEL_API>/api \
+  --build-arg VITE_MSAL_CLIENT_ID=<FRONTEND_CLIENT_ID> \
+  --build-arg VITE_MSAL_TENANT_ID=<TENANT_ID> \
+  --build-arg VITE_MSAL_API_SCOPE=api://<API_CLIENT_ID>/access_as_user \
+  --build-arg VITE_MSAL_REDIRECT_URI=<REDIRECT_URI_REAL> \
+  -t classflow-frontend:local .
 ```
 
 El Dockerfile ya ejecuta `npm ci` y `npm run build`.
 
 ## Pruebas de aceptacion
+
+Las pruebas automatizadas (`npm test`) cubren el flujo de sesion, el interceptor de la API, los guards de ruta y la pantalla de login en ambos modos.
 
 ### Modo local
 
@@ -123,20 +165,20 @@ El Dockerfile ya ejecuta `npm ci` y `npm run build`.
 
 ### Modo Entra
 
-- El formulario local no aparece.
-- El boton de Microsoft abre el login de Entra.
+- El formulario de correo y contrasena sigue visible como opcion principal.
+- `Continuar con Microsoft` aparece debajo como segunda opcion.
+- El boton de Microsoft abre en un popup la pagina de Microsoft para ingresar o elegir la cuenta.
+- Al completar el login, el popup se cierra y la app continua en la ventana principal.
 - El token solicitado contiene el scope de la API.
 - Las peticiones llevan `Authorization: Bearer`.
 - `/api/auth/me` devuelve el perfil interno.
 - El dashboard corresponde al rol recibido.
-- Las rutas de recuperacion redirigen al login.
-- La gestion local `Nuevo usuario` no aparece.
-- Un usuario no asignado en Entra no debe recibir acceso accidentalmente.
+- Un usuario no registrado en ClassFlow no recibe acceso.
 
 ## Decisiones importantes
 
 - El frontend usa `access_token`, no `id_token`, para llamar al backend.
 - El frontend no decide ni inventa roles; usa el perfil devuelto por ClassFlow.
 - Microsoft Entra autentica y entrega claims; ClassFlow conserva usuarios, relaciones y roles internos.
-- No se deben hardcodear IDs reales ni dominios de produccion.
-- No activar `entra` hasta disponer de los valores reales y la API publicada.
+- El login es hibrido: correo y contrasena como opcion principal y Microsoft como segunda. Al recargar, la sesion se restaura con el mismo metodo con que se ingreso.
+- El login con Microsoft usa `prompt=select_account`: siempre muestra la pagina de Microsoft en vez de reutilizar en silencio la sesion del navegador.

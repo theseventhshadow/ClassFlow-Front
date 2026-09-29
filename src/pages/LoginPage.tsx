@@ -2,36 +2,45 @@ import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@context';
 import { isEntraAuthEnabled } from '@config/msal';
+import { ROUTES, getDashboardRouteByRole } from '@constants';
 import './LoginPage.css';
 
+type LoginMethod = 'password' | 'microsoft';
+
+/** Logo oficial de Microsoft (cuatro cuadrados). */
+const MicrosoftLogo: React.FC = () => (
+  <svg className="login-microsoft-logo" viewBox="0 0 21 21" aria-hidden="true">
+    <rect x="1" y="1" width="9" height="9" fill="#f25022" />
+    <rect x="11" y="1" width="9" height="9" fill="#7fba00" />
+    <rect x="1" y="11" width="9" height="9" fill="#00a4ef" />
+    <rect x="11" y="11" width="9" height="9" fill="#ffb900" />
+  </svg>
+);
+
+/**
+ * Login híbrido: correo y contraseña como opción principal y, si Microsoft Entra
+ * está configurado, "Continuar con Microsoft" como segunda opción.
+ */
 export const LoginPage: React.FC = () => {
-  const { login, loginWithMicrosoft, isLoading, error, user } = useAuth();
+  const { login, loginWithMicrosoft, isLoading, error, user, isAuthenticated } = useAuth();
   const navigate = useNavigate();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [activeMethod, setActiveMethod] = useState<LoginMethod | null>(null);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent): Promise<void> => {
     e.preventDefault();
+    setActiveMethod('password');
     try {
-      const loggedUser = await login(email, password);
-      if (loggedUser.rol === 'ADMINISTRATOR') {
-        navigate('/dashboard/admin', { replace: true });
-      } else if (loggedUser.rol === 'TEACHER') {
-        navigate('/dashboard/teacher', { replace: true });
-      } else if (loggedUser.rol === 'STUDENT') {
-        navigate('/dashboard/student', { replace: true });
-      } else if (loggedUser.rol === 'GUARDIAN') {
-        navigate('/dashboard/guardian', { replace: true });
-      } else {
-        navigate('/dashboard', { replace: true });
-      }
+      await login(email, password);
     } catch {
       // el error ya queda en el contexto
     }
   };
 
-  const handleMicrosoftLogin = async () => {
+  const handleMicrosoftLogin = async (): Promise<void> => {
+    setActiveMethod('microsoft');
     try {
       await loginWithMicrosoft();
     } catch {
@@ -39,19 +48,15 @@ export const LoginPage: React.FC = () => {
     }
   };
 
-  const getDashboardPath = (role: string): string => {
-    if (role === 'ADMINISTRATOR') return '/dashboard/admin';
-    if (role === 'TEACHER') return '/dashboard/teacher';
-    if (role === 'STUDENT') return '/dashboard/student';
-    if (role === 'GUARDIAN') return '/dashboard/guardian';
-    return '/dashboard';
-  };
-
+  // Tras cualquier login, lleva a la persona al dashboard de su rol en ClassFlow
   useEffect(() => {
-    if (user) {
-      navigate(getDashboardPath(user.rol), { replace: true });
+    if (isAuthenticated && user) {
+      navigate(getDashboardRouteByRole(user.rol), { replace: true });
     }
-  }, [navigate, user]);
+  }, [navigate, isAuthenticated, user]);
+
+  const isPasswordLoading = isLoading && activeMethod === 'password';
+  const isMicrosoftLoading = isLoading && activeMethod === 'microsoft';
 
   return (
     <div className="login-page">
@@ -69,9 +74,7 @@ export const LoginPage: React.FC = () => {
       <div className="login-right">
         <div className="login-form-box">
           <h2 className="login-welcome">Bienvenido</h2>
-          <p className="login-welcome-sub">
-            {isEntraAuthEnabled ? 'Accede con tu cuenta institucional' : 'Ingresa tus credenciales para continuar'}
-          </p>
+          <p className="login-welcome-sub">Ingresa tus credenciales para continuar</p>
 
           <form onSubmit={handleSubmit} className="login-form">
             <div className="login-field">
@@ -81,6 +84,7 @@ export const LoginPage: React.FC = () => {
                 <input
                   id="email"
                   type="text"
+                  autoComplete="username"
                   placeholder="usuario@classflow.cl"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
@@ -97,6 +101,7 @@ export const LoginPage: React.FC = () => {
                 <input
                   id="password"
                   type="password"
+                  autoComplete="current-password"
                   placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
@@ -107,22 +112,31 @@ export const LoginPage: React.FC = () => {
             </div>
 
             <button type="submit" className="login-submit-btn" disabled={isLoading}>
-              {isLoading ? 'Ingresando...' : 'Iniciar sesión'}
+              {isPasswordLoading ? 'Ingresando...' : 'Iniciar sesión'}
             </button>
           </form>
 
-          {error && <p className="login-error">{error}</p>}
+          {isEntraAuthEnabled && (
+            <>
+              <div className="login-or">o</div>
+              <button
+                type="button"
+                className="login-microsoft-btn"
+                onClick={handleMicrosoftLogin}
+                disabled={isLoading}
+              >
+                <MicrosoftLogo />
+                {isMicrosoftLoading ? 'Conectando con Microsoft...' : 'Continuar con Microsoft'}
+              </button>
+            </>
+          )}
+
+          {error && <p className="login-error" role="alert">{error}</p>}
 
           <div className="login-recover">
-            <button type="button" className="login-submit-btn" onClick={handleMicrosoftLogin} disabled={isLoading}>
-              {isLoading ? 'Conectando...' : 'Continuar con Microsoft'}
-            </button>
-          </div>
-
-          {!isEntraAuthEnabled && <div className="login-recover">
             <span className="login-recover-divider">¿Problemas para ingresar?</span>
-            <Link to="/forgot-password" className="login-recover-link">Recuperar contraseña</Link>
-          </div>}
+            <Link to={ROUTES.FORGOT_PASSWORD} className="login-recover-link">Recuperar contraseña</Link>
+          </div>
         </div>
       </div>
     </div>

@@ -98,6 +98,7 @@ class AuthService {
   logout(): void {
     localStorage.removeItem('user_token');
     localStorage.removeItem('user_data');
+    localStorage.removeItem('auth_provider');
   }
 
   private isApiResponse(value: LoginResponse | ApiResponse<LoginResponse>): value is ApiResponse<LoginResponse> {

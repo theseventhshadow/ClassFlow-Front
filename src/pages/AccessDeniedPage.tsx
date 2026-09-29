@@ -1,32 +1,24 @@
-import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@context';
-import { getDashboardRouteByRole } from '@constants';
-
-type DenialReason = 'NOT_AUTHENTICATED' | 'INSUFFICIENT_PERMISSIONS';
+import { ROUTES, getDashboardRouteByRole } from '@constants';
+import type { AccessDeniedState } from '@components/common/ProtectedRoute';
 
 export const AccessDeniedPage: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user } = useAuth();
-  const [reason, setReason] = useState<DenialReason>('NOT_AUTHENTICATED');
+  const reason = (location.state as AccessDeniedState | null)?.reason ?? 'NOT_AUTHENTICATED';
 
-  useEffect(() => {
-    const storedReason = localStorage.getItem('access_denial_reason') as DenialReason | null;
-    if (storedReason) {
-      setReason(storedReason);
-      localStorage.removeItem('access_denial_reason');
-    }
-  }, []);
-
-  const handleGoToLogin = () => {
-    navigate('/login', { replace: true });
+  const handleGoToLogin = (): void => {
+    navigate(ROUTES.LOGIN, { replace: true });
   };
 
-  const handleGoBack = () => {
+  const handleGoBack = (): void => {
     navigate(-1);
   };
 
-  const handleGoToDashboard = () => {
+  const handleGoToDashboard = (): void => {
     const targetRoute = getDashboardRouteByRole(user?.rol);
     navigate(targetRoute, { replace: true });
   };

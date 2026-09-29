@@ -24,7 +24,7 @@ export const CourseAnnotationsSection: React.FC<Props> = ({ roster, annotations,
 
   const hasRoster = roster.length > 0;
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent): Promise<void> => {
     e.preventDefault();
 
     if (!form.studentId || !form.description.trim()) {

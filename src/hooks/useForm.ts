@@ -4,7 +4,20 @@ import { useState, useCallback } from 'react';
  * Hook personalizado para manejar formularios
  * Simplifica el estado y validación de campos
  */
-export function useForm<T extends Record<string, unknown>>(initialValues: T) {
+export interface UseFormResult<T extends Record<string, unknown>> {
+  values: T;
+  errors: Partial<T>;
+  touched: Partial<Record<keyof T, boolean>>;
+  handleChange: (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
+  ) => void;
+  handleBlur: (e: React.FocusEvent<HTMLInputElement>) => void;
+  handleReset: () => void;
+  setFieldValue: (name: keyof T, value: unknown) => void;
+  setFieldError: (name: keyof T, error: string) => void;
+}
+
+export function useForm<T extends Record<string, unknown>>(initialValues: T): UseFormResult<T> {
   const [values, setValues] = useState(initialValues);
   const [errors, setErrors] = useState<Partial<T>>({});
   const [touched, setTouched] = useState<Partial<Record<keyof T, boolean>>>({});

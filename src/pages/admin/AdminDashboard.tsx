@@ -3,7 +3,6 @@ import { useAuth } from '@context';
 import { Loading, Error as ErrorState, LogoutModal } from '@components/common';
 import { useDashboardData, useLogout } from '@hooks';
 import { UserRole, authService, courseService } from '@services';
-import { isEntraAuthEnabled } from '@config/msal';
 import { humanizeRole, getErrorMessage } from '@utils';
 import './AdminDashboard.css';
 
@@ -120,32 +119,32 @@ export const AdminDashboard: React.FC = () => {
         .toUpperCase()
     : 'AD';
 
-  const openModal = () => {
+  const openModal = (): void => {
     setForm(EMPTY_FORM);
     setFormError(null);
     setShowModal(true);
   };
 
-  const openCourseModal = () => {
+  const openCourseModal = (): void => {
     setCourseForm({ name: '', description: '', academicYear: '' });
     setCourseFormError(null);
     setShowCourseModal(true);
   };
 
-  const closeModal = () => setShowModal(false);
+  const closeModal = (): void => setShowModal(false);
 
-  const handleFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+  const handleFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>): void => {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value } as FormState));
   };
 
-  const handleCourseFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+  const handleCourseFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>): void => {
     const { name, value } = e.target as HTMLInputElement;
     setCourseForm((prev) => ({ ...prev, [name]: value }));
   };
   const mapRoleToBackend = (role: UserRole): string => role;
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent): Promise<void> => {
     e.preventDefault();
 
     if (!form.nombres.trim() || !form.apellidos.trim() || !form.email.trim() || !form.password.trim() || !form.idNumber.trim()) {
@@ -204,7 +203,7 @@ export const AdminDashboard: React.FC = () => {
     }
   };
 
-  const handleCreateCourse = async (e: React.FormEvent) => {
+  const handleCreateCourse = async (e: React.FormEvent): Promise<void> => {
     e.preventDefault();
 
     if (!courseForm.name.trim() || !courseForm.academicYear.trim()) {
@@ -309,11 +308,9 @@ export const AdminDashboard: React.FC = () => {
             <button className="admin-btn admin-btn--secondary" onClick={openCourseModal}>
               + Nuevo curso
             </button>
-            {!isEntraAuthEnabled && (
-              <button className="admin-btn admin-btn--primary" onClick={openModal}>
-                + Nuevo usuario
-              </button>
-            )}
+            <button className="admin-btn admin-btn--primary" onClick={openModal}>
+              + Nuevo usuario
+            </button>
           </div>
         </header>
 
@@ -541,7 +538,7 @@ export const AdminDashboard: React.FC = () => {
         )}
       </main>
 
-      {!isEntraAuthEnabled && showModal && (
+      {showModal && (
         <div className="admin-modal-overlay" onClick={closeModal}>
           <div className="admin-modal" onClick={(e) => e.stopPropagation()}>
             <div className="admin-modal-header">
