@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { ApiError } from '@types';
 
 interface UseAsyncState<T> {
@@ -35,10 +35,12 @@ export function useAsync<T>(
     }
   }, [asyncFunction]);
 
-  // Ejecutar automáticamente si immediate es true
-  if (immediate && state.loading) {
-    execute();
-  }
+  // Ejecuta al montar (o si cambia la función) en un efecto, nunca durante el render.
+  useEffect(() => {
+    if (immediate) {
+      void execute();
+    }
+  }, [execute, immediate]);
 
   return { ...state, execute };
 }

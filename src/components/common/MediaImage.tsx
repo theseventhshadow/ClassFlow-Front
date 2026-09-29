@@ -20,12 +20,12 @@ export const MediaImage: React.FC<MediaImageProps> = ({
   alt = 'Imagen',
   ...props
 }) => {
-  const handleError = (e: React.SyntheticEvent<HTMLImageElement>) => {
+  const handleError = (e: React.SyntheticEvent<HTMLImageElement>): void => {
     const img = e.currentTarget;
     if (img.src !== fallbackSrc) {
       img.src = fallbackSrc;
     }
-    onError?.(e as any);
+    onError?.(e);
     onLoadError?.();
   };
 

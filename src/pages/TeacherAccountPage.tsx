@@ -24,7 +24,7 @@ export const TeacherAccountPage: React.FC = () => {
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const { dashboard, loading, error, refetch } = useRawDashboard();
 
-  const handleNavClick = (key: NavKey) => {
+  const handleNavClick = (key: NavKey): void => {
     setActiveNav(key);
     if (key !== 'courses') setSelectedCourseId(null);
   };

@@ -81,7 +81,10 @@ Las variables de entorno se gestionan a través de archivos `.env`. El repositor
 
 ```env
 # URL base del API Gateway
-VITE_API_BASE_URL=/api
+VITE_API_BASE_URL=http://localhost:8080/api
+
+# Solo desarrollo: backend al que Vite redirige /api cuando VITE_API_BASE_URL no se define
+API_PROXY_TARGET=http://localhost:8080
 
 # Autenticacion: local | entra
 VITE_AUTH_MODE=local
@@ -95,7 +98,12 @@ VITE_MSAL_REDIRECT_URI=http://localhost:3000
 
 > Las variables `VITE_` son resueltas por Vite en tiempo de compilación y quedan embebidas en el bundle estático. No existe inyección en runtime para una aplicación servida desde Nginx. Cualquier cambio de valor requiere un nuevo build. El archivo `.env.local` está incluido en `.gitignore` y debe distribuirse de forma segura fuera del control de versiones.
 
-El modo `local` mantiene el login actual del proyecto. El modo `entra` deja preparadas las variables para integrar MSAL con Microsoft Entra ID; requiere completar los identificadores reales del tenant, frontend y API antes de activarlo.
+La pantalla de login es **híbrida**:
+
+- **Correo y contraseña** es la opción principal y está siempre disponible, junto con la recuperación de contraseña.
+- **Continuar con Microsoft** aparece como segunda opción cuando `VITE_AUTH_MODE=entra` y las variables `VITE_MSAL_*` son válidas. Siempre muestra la página de Microsoft para ingresar o elegir la cuenta.
+
+Cada opción requiere que el backend la acepte: el login con contraseña necesita los endpoints locales de `ms-auth`, y el de Microsoft necesita que el gateway, el BFF y `ms-auth` validen tokens de Entra. Ver [docs/ENTRA-AWS-HANDOFF.md](docs/ENTRA-AWS-HANDOFF.md).
 
 ---
 
@@ -156,12 +164,15 @@ src/
 │       ├── Layout.tsx         # Componente raíz de estructura de página
 │       └── index.ts
 ├── config/
-│   └── index.ts               # Configuración global (baseURL, timeouts, flags)
+│   ├── index.ts               # Configuración global (baseURL, timeouts, flags)
+│   └── msal.ts                # Microsoft Entra ID (MSAL): modo, cuenta activa y tokens
 ├── constants/
 │   └── index.ts               # Constantes de dominio (roles, estados, rutas)
 ├── context/
-│   ├── AuthContext.tsx        # Contexto de autenticación y sesión
-│   ├── ThemeContext.tsx       # Contexto de tema visual
+│   ├── auth-context.ts        # Contexto de sesión y hook useAuth
+│   ├── AuthProvider.tsx       # Validación de sesión, login (contraseña o Microsoft) y logout
+│   ├── theme-context.ts       # Contexto de tema y hook useTheme
+│   ├── ThemeProvider.tsx      # Proveedor de tema visual
 │   └── index.ts
 ├── hooks/
 │   ├── useAsync.ts            # Manejo genérico de operaciones asíncronas
@@ -244,8 +255,8 @@ Muestra las alertas del sistema: inasistencias, nuevas calificaciones y mensajes
 
 Todas las peticiones HTTP pasan por el API Gateway en el puerto **8080**. La instancia de Axios configurada en `src/services/` aplica los siguientes interceptores de forma transversal:
 
-- **Solicitud:** Adjunta el token JWT del `localStorage` en el header `Authorization: Bearer <token>`, excepto en endpoints públicos (login, forgot-password).
-- **Respuesta:** Los errores se normalizan en un objeto `ApiError` con `message`, `status` y `details`.
+- **Solicitud:** Adjunta `Authorization: Bearer <token>`, excepto en endpoints públicos (login, forgot-password, reset-password). En sesiones con contraseña usa el JWT del backend; en sesiones de Microsoft, el access token de Entra obtenido con MSAL.
+- **Respuesta:** Los errores se normalizan en un objeto `ApiError` con `message`, `status` y `details`. Un `401` en un endpoint protegido cierra la sesión local.
 
 ### Tabla de Enrutamiento del Gateway
 
@@ -271,11 +282,14 @@ El BFF en el puerto **8086** agrega respuestas de múltiples microservicios en u
 
 ## Autenticación
 
-El sistema implementa autenticación JWT stateless con las siguientes características:
+El sistema implementa autenticación stateless con login híbrido (ver [Variables de Entorno](#variables-de-entorno)):
 
-- El token JWT se almacena en `localStorage` junto con los datos del usuario.
-- Los guards de ruta (`ProtectedRoute`) validan el rol del usuario autenticado antes de renderizar cada página. Un rol sin permiso recibe una redirección a la vista `403` (`AccessDeniedPage`).
-- Al cerrar sesión se eliminan tanto el token como los datos del usuario del `localStorage`.
+- **Correo y contraseña:** el JWT del backend se guarda en `localStorage`.
+- **Microsoft (segunda opción):** login mediante popup (MSAL). El rol **no** viene de Microsoft: el frontend consulta `GET /api/auth/me` y usa el perfil interno que devuelve ClassFlow.
+- Al recargar, la sesión se restaura con el mismo método con que se ingresó. Una cuenta de Microsoft que quede en el navegador no inicia sesión por sí sola.
+- `AuthProvider` valida la sesión **una vez** al abrir la app (estado `checking` → `authenticated` / `unauthenticated`) y la invalida ante cualquier `401` de la API.
+- Los guards de ruta (`ProtectedRoute`) esperan esa validación y comprueban el rol antes de renderizar cada página. Sin sesión o sin permiso, redirigen a `AccessDeniedPage` indicando el motivo.
+- Al cerrar sesión se limpia la sesión local y, en modo Entra, también la de Microsoft.
 
 Los roles del sistema son: `ADMINISTRADOR`, `DOCENTE`, `ESTUDIANTE`, `APODERADO`.
 

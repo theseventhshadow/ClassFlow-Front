@@ -1,7 +1,9 @@
 /**
  * Set de íconos SVG compartido por los dashboards de estudiante y apoderado
  * (antes duplicado carácter por carácter en ambos archivos).
+ * Es un namespace de componentes, por eso se exporta como objeto.
  */
+// eslint-disable-next-line react-refresh/only-export-components
 export const Icon = {
   Grid: () => (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -134,6 +136,6 @@ export const Icon = {
       <line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>
     </svg>
   ),
-};
+} satisfies Record<string, () => React.ReactElement>;
 
 export default Icon;

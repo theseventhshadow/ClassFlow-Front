@@ -4,7 +4,13 @@ import { useState, useEffect } from 'react';
  * Hook personalizado para realizar un fetch con URL
  * Simplifica llamadas GET comunes
  */
-export function useFetch<T>(url: string) {
+export interface UseFetchResult<T> {
+  data: T | null;
+  loading: boolean;
+  error: Error | null;
+}
+
+export function useFetch<T>(url: string): UseFetchResult<T> {
   const [data, setData] = useState<T | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);

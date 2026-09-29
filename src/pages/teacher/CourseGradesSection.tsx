@@ -36,7 +36,7 @@ export const CourseGradesSection: React.FC<Props> = ({
   const hasRoster = roster.length > 0;
   const formDisabled = !hasEvaluations || !hasRoster;
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent): Promise<void> => {
     e.preventDefault();
 
     if (!form.evaluationId || !form.studentId || !form.score.trim()) {

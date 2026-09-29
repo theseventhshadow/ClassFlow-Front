@@ -212,6 +212,58 @@
   cursor: not-allowed;
 }
 
+/* Separador "o" entre el login con contraseña y el de Microsoft */
+.login-or {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 0.5rem 0 0.25rem;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.85rem;
+}
+
+.login-or::before,
+.login-or::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.35);
+}
+
+/* Opción secundaria: botón transparente con el logo de Microsoft */
+.login-microsoft-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  padding: 0.8rem;
+  background: transparent;
+  color: #ffffff;
+  border: 1.5px solid rgba(255, 255, 255, 0.7);
+  border-radius: 10px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
+}
+
+.login-microsoft-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: #ffffff;
+}
+
+.login-microsoft-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.login-microsoft-logo {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
 .login-recover {
   display: flex;
   flex-direction: column;

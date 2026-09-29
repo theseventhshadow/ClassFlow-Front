@@ -1,23 +1,6 @@
-import React, { createContext, ReactNode, useState, useCallback, useEffect } from 'react';
+import React, { ReactNode, useState, useCallback, useEffect } from 'react';
 
-/**
- * Tipo de tema
- */
-export type ThemeType = 'light' | 'dark';
-
-/**
- * Interfaz del contexto de tema
- */
-interface ThemeContextType {
-  theme: ThemeType;
-  toggleTheme: () => void;
-  setTheme: (theme: ThemeType) => void;
-}
-
-/**
- * Contexto de tema
- */
-export const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
+import { ThemeContext, ThemeType } from './theme-context';
 
 /**
  * Proveedor de tema
@@ -50,15 +33,4 @@ export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       {children}
     </ThemeContext.Provider>
   );
-};
-
-/**
- * Hook personalizado para usar el contexto de tema
- */
-export const useTheme = (): ThemeContextType => {
-  const context = React.useContext(ThemeContext);
-  if (context === undefined) {
-    throw new Error('useTheme debe ser usado dentro de ThemeProvider');
-  }
-  return context;
 };

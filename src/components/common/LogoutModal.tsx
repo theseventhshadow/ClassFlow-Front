@@ -15,7 +15,7 @@ export const LogoutModal: React.FC<LogoutModalProps> = ({ open, onCancel, onConf
   useEffect(() => {
     if (!open) return;
 
-    const handleKeyDown = (event: KeyboardEvent) => {
+    const handleKeyDown = (event: KeyboardEvent): void => {
       if (event.key === 'Escape') {
         onCancel();
       }

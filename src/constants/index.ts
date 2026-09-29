@@ -49,6 +49,7 @@ export const HTTP_STATUS = {
 export const LOCAL_STORAGE_KEYS = {
   USER_TOKEN: 'user_token',
   USER_DATA: 'user_data',
+  AUTH_PROVIDER: 'auth_provider',
   THEME: 'theme',
   LANGUAGE: 'language',
 } as const;

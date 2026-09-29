@@ -1,6 +1,13 @@
 import axios, { AxiosInstance, AxiosError } from 'axios';
 import { config } from '@config';
+import { acquireApiAccessToken } from '@config/msal';
+import { LOCAL_STORAGE_KEYS } from '@constants';
 import { ApiError } from '@types';
+
+const PUBLIC_ENDPOINTS = ['/auth/login', '/auth/forgot-password', '/auth/reset-password'];
+
+const isPublicEndpoint = (url?: string): boolean =>
+  PUBLIC_ENDPOINTS.some((endpoint) => url?.includes(endpoint));
 
 /**
  * Instancia de Axios configurada
@@ -8,6 +15,7 @@ import { ApiError } from '@types';
  */
 class ApiService {
   private instance: AxiosInstance;
+  private unauthorizedHandler: (() => void) | null = null;
 
   constructor() {
     this.instance = axios.create({
@@ -19,6 +27,14 @@ class ApiService {
     });
 
     this.setupInterceptors();
+  }
+
+  /**
+   * Registra qué hacer cuando la API rechaza la sesión (401) en un endpoint protegido.
+   * AuthProvider lo usa para cerrar la sesión local.
+   */
+  setUnauthorizedHandler(handler: (() => void) | null): void {
+    this.unauthorizedHandler = handler;
   }
 
   /**
@@ -35,25 +51,30 @@ class ApiService {
           details: error.response?.data,
         };
 
-        // Aquí puedes agregar lógica global de manejo de errores
+        if (apiError.status === 401 && !isPublicEndpoint(error.config?.url)) {
+          this.unauthorizedHandler?.();
+        }
+
         console.error('API Error:', apiError);
 
         return Promise.reject(apiError);
       }
     );
 
-    // Interceptor de solicitud
-    this.instance.interceptors.request.use((config) => {
-      // Aquí puedes agregar el token de autenticación si existe
-      // Excepto en endpoints públicos como login, register, etc.
-      const publicEndpoints = ['/auth/login', '/auth/forgot-password'];
-      const isPublicEndpoint = publicEndpoints.some((endpoint) => config.url?.includes(endpoint));
+    // Interceptor de solicitud: agrega el Bearer token salvo en endpoints públicos
+    // o cuando la llamada ya trae su propio Authorization.
+    this.instance.interceptors.request.use(async (config) => {
+      if (isPublicEndpoint(config.url) || config.headers.Authorization) {
+        return config;
+      }
 
-      if (!isPublicEndpoint) {
-        const token = localStorage.getItem('user_token');
-        if (token) {
-          config.headers.Authorization = `Bearer ${token}`;
-        }
+      const token =
+        localStorage.getItem(LOCAL_STORAGE_KEYS.AUTH_PROVIDER) === 'microsoft'
+          ? await acquireApiAccessToken()
+          : localStorage.getItem(LOCAL_STORAGE_KEYS.USER_TOKEN);
+
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
       }
       return config;
     });
