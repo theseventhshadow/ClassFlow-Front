@@ -1,20 +1,34 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '@context';
 import { Loading, LogoutModal } from '@components/common';
 import { useRawDashboard, useLogout } from '@hooks';
+import { User, directoryService } from '@services';
+import { MessagingPanel } from '@components/school/MessagingPanel';
 import { TeacherCoursesListView } from './teacher/TeacherCoursesListView';
 import { TeacherCourseDetailView } from './teacher/TeacherCourseDetailView';
+import {
+  AnnotationsManagerView,
+  AttendanceTakingView,
+  GradebookView,
+} from './teacher/TeacherViews';
 
 type NavKey = 'dashboard' | 'courses' | 'attendance' | 'annotations' | 'grades' | 'messages';
 
-const NAV_ITEMS: { key: NavKey; label: string; icon: string; badge?: number }[] = [
+const NAV_ITEMS: { key: NavKey; label: string; icon: string }[] = [
   { key: 'dashboard', label: 'Dashboard', icon: '⊞' },
   { key: 'courses', label: 'Mis Cursos', icon: '📚' },
   { key: 'attendance', label: 'Asistencia', icon: '✓' },
   { key: 'annotations', label: 'Anotaciones', icon: '📝' },
   { key: 'grades', label: 'Calificaciones', icon: '📊' },
-  { key: 'messages', label: 'Mensajería', icon: '💬', badge: 2 },
+  { key: 'messages', label: 'Mensajería', icon: '💬' },
 ];
+
+/** Vistas de trabajo sobre un curso elegido en la barra superior. */
+const COURSE_TOOLS: Partial<Record<NavKey, string>> = {
+  attendance: 'Asistencia',
+  annotations: 'Anotaciones',
+  grades: 'Calificaciones',
+};
 
 export const TeacherAccountPage: React.FC = () => {
   const { user } = useAuth();
@@ -23,6 +37,13 @@ export const TeacherAccountPage: React.FC = () => {
   const [selectedCourseId, setSelectedCourseId] = useState<number | null>(null);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const { dashboard, loading, error, refetch } = useRawDashboard();
+  // Directorio de usuarios: alumnos de cada curso, sus apoderados y destinatarios de mensajes.
+  const [directory, setDirectory] = useState<User[]>([]);
+  const [toolCourseId, setToolCourseId] = useState<number | null>(null);
+
+  useEffect(() => {
+    directoryService.listUsers().then(setDirectory).catch(() => setDirectory([]));
+  }, []);
 
   const handleNavClick = (key: NavKey): void => {
     setActiveNav(key);
@@ -71,6 +92,21 @@ export const TeacherAccountPage: React.FC = () => {
     ? Math.round((attendances.filter(a => a.present).length / attendances.length) * 100)
     : 0;
 
+  const toolCourse = courses.find((c) => c.id === toolCourseId) ?? courses[0] ?? null;
+  const toolStudents = useMemo(
+    () => directory.filter((u) => u.rol === 'STUDENT' && u.subject === toolCourse?.name),
+    [directory, toolCourse]
+  );
+  const guardians = useMemo(() => directory.filter((u) => u.rol === 'GUARDIAN'), [directory]);
+
+  const renderCourseTool = (): React.ReactNode => {
+    if (!user || !toolCourse) return <p className="school-empty">No hay cursos disponibles.</p>;
+    const props = { course: toolCourse, students: toolStudents, guardians };
+    if (activeNav === 'attendance') return <AttendanceTakingView {...props} />;
+    if (activeNav === 'grades') return <GradebookView {...props} />;
+    return <AnnotationsManagerView {...props} teacherId={user.id} />;
+  };
+
   if (loading) return <Loading size="lg" message="Cargando portal docente..." />;
   if (error) return <div className="tp-portal"><main className="tp-main"><p style={{ padding: '2rem', color: '#dc2626' }}>{error}</p></main></div>;
 
@@ -102,7 +138,9 @@ export const TeacherAccountPage: React.FC = () => {
             >
               <span className="tp-nav-icon">{item.icon}</span>
               {item.label}
-              {item.badge && <span className="tp-nav-badge">{item.badge}</span>}
+              {item.key === 'messages' && unreadMessages.length > 0 && (
+                <span className="tp-nav-badge">{unreadMessages.length}</span>
+              )}
             </button>
           ))}
         </nav>
@@ -137,6 +175,38 @@ export const TeacherAccountPage: React.FC = () => {
             refetch={refetch}
           />
         )
+      ) : activeNav === 'messages' && user ? (
+        <>
+          <div className="tp-topbar">
+            <div>
+              <h1 className="tp-title">Mensajería</h1>
+              <p className="tp-date">{formattedDate}</p>
+            </div>
+          </div>
+          <MessagingPanel currentUserId={user.id} recipients={directory} courses={courses} />
+        </>
+      ) : COURSE_TOOLS[activeNav] ? (
+        <>
+          <div className="tp-topbar">
+            <div>
+              <h1 className="tp-title">{COURSE_TOOLS[activeNav]}</h1>
+              <p className="tp-date">{formattedDate}</p>
+            </div>
+            {courses.length > 0 && (
+              <div className="tp-topbar-actions">
+                <label className="school-inline">
+                  Curso
+                  <select value={toolCourse?.id ?? ''} onChange={(e) => setToolCourseId(Number(e.target.value))}>
+                    {courses.map((c) => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+            )}
+          </div>
+          {renderCourseTool()}
+        </>
       ) : (
         <>
         {/* Top bar */}
@@ -146,8 +216,8 @@ export const TeacherAccountPage: React.FC = () => {
             <p className="tp-date">{formattedDate}</p>
           </div>
           <div className="tp-topbar-actions">
-            <button className="tp-btn tp-btn--outline">Ver horario</button>
-            <button className="tp-btn tp-btn--primary">+ Registrar asistencia</button>
+            <button className="tp-btn tp-btn--outline" onClick={() => handleNavClick('grades')}>Ingresar notas</button>
+            <button className="tp-btn tp-btn--primary" onClick={() => handleNavClick('attendance')}>+ Registrar asistencia</button>
           </div>
         </div>
 
@@ -217,7 +287,7 @@ export const TeacherAccountPage: React.FC = () => {
           <div className="tp-card">
             <div className="tp-card-header">
               <h3>Mis cursos</h3>
-              <button className="tp-link">Ver todos →</button>
+              <button className="tp-link" onClick={() => handleNavClick('courses')}>Ver todos →</button>
             </div>
             <div className="tp-course-list">
               {courses.length > 0 ? courses.map((course) => (
@@ -240,7 +310,7 @@ export const TeacherAccountPage: React.FC = () => {
           <div className="tp-card">
             <div className="tp-card-header">
               <h3>Cursos y asistencias</h3>
-              <button className="tp-link">Ver detalle →</button>
+              <button className="tp-link" onClick={() => handleNavClick('attendance')}>Pasar lista →</button>
             </div>
             <div className="tp-schedule-list">
               {courses.length > 0 ? courses.slice(0, 5).map((course) => {
@@ -273,7 +343,7 @@ export const TeacherAccountPage: React.FC = () => {
           <div className="tp-card">
             <div className="tp-card-header">
               <h3>Asistencia reciente</h3>
-              <button className="tp-link">Ver completo →</button>
+              <button className="tp-link" onClick={() => handleNavClick('attendance')}>Ver completo →</button>
             </div>
             <div className="tp-list">
               {attendances.slice(0, 5).map((att) => {
@@ -297,7 +367,7 @@ export const TeacherAccountPage: React.FC = () => {
           <div className="tp-card">
             <div className="tp-card-header">
               <h3>Anotaciones recientes</h3>
-              <button className="tp-link">Ver todas →</button>
+              <button className="tp-link" onClick={() => handleNavClick('annotations')}>Ver todas →</button>
             </div>
             <div className="tp-list">
               {annotations.slice(0, 4).map((ann) => {

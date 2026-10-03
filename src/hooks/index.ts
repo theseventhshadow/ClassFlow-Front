@@ -11,3 +11,4 @@ export { useForm } from './useForm';
 export { useLogout } from './useLogout';
 export { useTeacherCourseDetail } from './useTeacherCourseDetail';
 export type { TeacherCourseDetail } from './useTeacherCourseDetail';
+export { usePortalData } from './usePortalData';
