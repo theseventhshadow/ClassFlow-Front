@@ -23,7 +23,7 @@ export interface RegisterRequest {
   guardianId?: number;
 }
 
-interface BackendUser {
+export interface BackendUser {
   id: string | number;
   first_name?: string;
   last_name?: string;
@@ -40,6 +40,7 @@ interface BackendUser {
   subject?: string;
   course?: string;
   guardian_id?: string | null;
+  guardianId?: number | null;
   phone?: string;
   bio?: string;
 }
@@ -129,7 +130,8 @@ class AuthService {
     };
   }
 
-  private normalizeUser(user: BackendUser): User {
+  /** Convierte un usuario de ms-auth al modelo del front (lo reutiliza directoryService). */
+  normalizeUser(user: BackendUser): User {
     const firstName = user.first_name ?? user.firstName ?? '';
     const lastName = user.last_name ?? user.lastName ?? '';
     const nombre = user.nombre ?? `${firstName} ${lastName}`.trim();
@@ -144,6 +146,9 @@ class AuthService {
       subject: user.subject ?? user.course,
       phone: user.phone,
       bio: user.bio,
+      guardianId: user.guardianId != null
+        ? String(user.guardianId)
+        : user.guardian_id ?? undefined,
     };
   }
 

@@ -852,3 +852,98 @@
   background: #ede9fe;
   color: #6d28d9;
 }
+/* ========================================
+      PORTAL ESTUDIANTE / APODERADO
+   ======================================== */
+
+.portal-empty {
+  padding: 1.5rem 1.25rem;
+  margin: 0;
+  font-size: 0.8125rem;
+  color: #94a3b8;
+  text-align: center;
+}
+
+.portal-grade {
+  display: inline-block;
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.portal-grade--ok {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.portal-grade--low {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.portal-progress {
+  margin: 1rem 1.25rem 0.25rem;
+}
+
+.portal-messages {
+  display: flex;
+  flex-direction: column;
+}
+
+.portal-message {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.875rem 1.25rem;
+  border: none;
+  border-bottom: 1px solid #f1f5f9;
+  background: #ffffff;
+  text-align: left;
+  cursor: pointer;
+}
+
+.portal-message:hover {
+  background: #f8fafc;
+}
+
+.portal-message--unread {
+  background: #eff6ff;
+}
+
+.portal-message--unread .activity-text {
+  font-weight: 600;
+}
+
+.portal-message-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.portal-message-body {
+  font-size: 0.8125rem;
+  color: #475569;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+.portal-student-select {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8125rem;
+  color: #64748b;
+}
+
+.portal-student-select select {
+  padding: 0.4375rem 0.75rem;
+  border: 1.5px solid #dde1e9;
+  border-radius: 0.5rem;
+  background: #ffffff;
+  color: #0f172a;
+  font-size: 0.8125rem;
+}

@@ -12,3 +12,6 @@ export { dashboardService } from './dashboard.service';
 export { courseService } from './course.service';
 export { gradeService } from './grade.service';
 export { annotationService } from './annotation.service';
+export * from './portal.service';
+export * from './school.service';
+export * from './directory.service';

@@ -1184,3 +1184,257 @@ body {
     margin: 0 auto;
   }
 }
+/* ========================================
+      GESTIÓN ESCOLAR (docente y administrador)
+   ======================================== */
+
+.school-muted {
+  font-size: 0.8rem;
+  color: #6B7280;
+}
+
+.school-empty {
+  margin: 0;
+  padding: 1.25rem 0;
+  font-size: 0.85rem;
+  color: #9CA3AF;
+  text-align: center;
+}
+
+.school-stack {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.school-notice {
+  margin: 0.75rem 0;
+  padding: 0.6rem 0.85rem;
+  border-radius: 0.5rem;
+  font-size: 0.85rem;
+}
+
+.school-notice--ok {
+  background: #DCFCE7;
+  color: #166534;
+}
+
+.school-notice--error {
+  background: #FEE2E2;
+  color: #B91C1C;
+}
+
+.school-inline {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  color: #4B5563;
+}
+
+.school-inline select,
+.school-inline input,
+.school-field input,
+.school-field select,
+.school-field textarea,
+.school-input {
+  padding: 0.45rem 0.65rem;
+  border: 1px solid #D1D5DB;
+  border-radius: 0.5rem;
+  background: #FFFFFF;
+  color: #111827;
+  font: inherit;
+  font-size: 0.85rem;
+}
+
+.school-input {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.school-input:disabled {
+  background: #F9FAFB;
+}
+
+.school-input--score {
+  width: 4.5rem;
+  text-align: center;
+}
+
+.school-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.school-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  margin-top: 0.75rem;
+}
+
+.school-form--row {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  padding: 0.85rem;
+  border-radius: 0.5rem;
+  background: #F9FAFB;
+}
+
+.school-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #374151;
+}
+
+.school-field textarea {
+  resize: vertical;
+}
+
+.school-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.school-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.school-table th {
+  padding: 0.6rem 0.5rem;
+  text-align: left;
+  font-size: 0.7rem;
+  letter-spacing: 0.05em;
+  color: #6B7280;
+  border-bottom: 1px solid #E5E7EB;
+}
+
+.school-table td {
+  padding: 0.55rem 0.5rem;
+  border-bottom: 1px solid #F3F4F6;
+  color: #111827;
+}
+
+.school-toggle {
+  border: none;
+  cursor: pointer;
+}
+
+.school-segmented {
+  display: inline-flex;
+  width: fit-content;
+  border: 1px solid #D1D5DB;
+  border-radius: 0.5rem;
+  overflow: hidden;
+}
+
+.school-segmented button {
+  padding: 0.4rem 0.85rem;
+  border: none;
+  background: #FFFFFF;
+  color: #374151;
+  font: inherit;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.school-segmented button.school-segmented--on {
+  background: #4F46E5;
+  color: #FFFFFF;
+}
+
+.school-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  border-bottom: 1px solid #E5E7EB;
+  margin-bottom: 0.5rem;
+}
+
+.school-tab {
+  padding: 0.55rem 0.9rem;
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: none;
+  color: #6B7280;
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.school-tab--active {
+  border-bottom-color: #4F46E5;
+  color: #4F46E5;
+  font-weight: 600;
+}
+
+.school-messages {
+  display: flex;
+  flex-direction: column;
+}
+
+.school-message {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  width: 100%;
+  padding: 0.75rem 0.25rem;
+  border: none;
+  border-bottom: 1px solid #F3F4F6;
+  background: none;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+}
+
+.school-message:hover {
+  background: #F9FAFB;
+}
+
+.school-message--unread {
+  background: #EEF2FF;
+}
+
+.school-message-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.school-message-subject {
+  font-size: 0.875rem;
+  color: #111827;
+}
+
+.school-message--unread .school-message-subject {
+  font-weight: 600;
+}
+
+.school-message-body {
+  font-size: 0.85rem;
+  color: #374151;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+.school-action-card {
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+}
+
+.school-action-card:hover {
+  border-color: #4F46E5;
+}

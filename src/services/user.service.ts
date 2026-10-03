@@ -13,6 +13,8 @@ export interface User {
   subject?: string;
   phone?: string;
   bio?: string;
+  /** Apoderado del estudiante. */
+  guardianId?: string;
 }
 
 export interface ChangePasswordPayload {

@@ -1,9 +1,26 @@
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '@context';
 import { Loading, Error as ErrorState, LogoutModal } from '@components/common';
+import { MessagingPanel } from '@components/school/MessagingPanel';
+import { downloadCsv } from '@components/school/csv';
 import { useDashboardData, useLogout } from '@hooks';
-import { UserRole, authService, courseService } from '@services';
+import {
+  DashboardCourse,
+  User,
+  UserRole,
+  authService,
+  courseService,
+  directoryService,
+  schoolService,
+} from '@services';
 import { humanizeRole, getErrorMessage } from '@utils';
+import {
+  AdminAcademicView,
+  AdminPerformanceView,
+  AdminReportsView,
+  AdminSettingsView,
+  AdminUsersView,
+} from './AdminViews';
 import './AdminDashboard.css';
 
 type TableUser = {
@@ -29,44 +46,62 @@ const ROL_CLASS: Record<UserRole, string> = {
   STUDENT: 'badge--estudiante',
 };
 
-type AdminNavKey = 'dashboard' | 'usuarios' | 'asistencia';
+type AdminNavKey =
+  | 'dashboard'
+  | 'usuarios'
+  | 'academica'
+  | 'asistencia'
+  | 'mensajeria'
+  | 'informes'
+  | 'rendimiento'
+  | 'configuracion';
 
 const NAV_KEY_BY_LABEL: Partial<Record<string, AdminNavKey>> = {
   Dashboard: 'dashboard',
   Usuarios: 'usuarios',
+  'Gestión Académica': 'academica',
   Asistencia: 'asistencia',
+  Mensajería: 'mensajeria',
+  Informes: 'informes',
+  Rendimiento: 'rendimiento',
+  Configuración: 'configuracion',
 };
 
 const NAV_TITLE: Record<AdminNavKey, string> = {
   dashboard: 'Panel de Administración',
   usuarios: 'Gestión de usuarios',
+  academica: 'Gestión académica',
   asistencia: 'Asistencia por curso',
+  mensajeria: 'Mensajería',
+  informes: 'Informes',
+  rendimiento: 'Rendimiento',
+  configuracion: 'Configuración',
 };
 
 const navSections = [
   {
     label: 'PRINCIPAL',
-    items: [{ icon: '▣', label: 'Dashboard', badge: null as number | null }],
+    items: [{ icon: '▣', label: 'Dashboard' }],
   },
   {
     label: 'GESTIÓN',
     items: [
-      { icon: '👥', label: 'Usuarios', badge: 4 as number | null },
-      { icon: '📚', label: 'Gestión Académica', badge: null as number | null },
-      { icon: '✔', label: 'Asistencia', badge: null as number | null },
-      { icon: '💬', label: 'Mensajería', badge: 7 as number | null },
+      { icon: '👥', label: 'Usuarios' },
+      { icon: '📚', label: 'Gestión Académica' },
+      { icon: '✔', label: 'Asistencia' },
+      { icon: '💬', label: 'Mensajería' },
     ],
   },
   {
     label: 'REPORTES',
     items: [
-      { icon: '📄', label: 'Informes', badge: null as number | null },
-      { icon: '📈', label: 'Rendimiento', badge: null as number | null },
+      { icon: '📄', label: 'Informes' },
+      { icon: '📈', label: 'Rendimiento' },
     ],
   },
   {
     label: 'SISTEMA',
-    items: [{ icon: '⚙', label: 'Configuración', badge: null as number | null }],
+    items: [{ icon: '⚙', label: 'Configuración' }],
   },
 ];
 
@@ -93,6 +128,74 @@ export const AdminDashboard: React.FC = () => {
   const handleLogout = useLogout();
   const { stats, users, courseAttendance, activity, alerts, loading, error, refetch } = useDashboardData();
   const [activeNav, setActiveNav] = useState<AdminNavKey>('dashboard');
+
+  // Directorio completo de usuarios (usuarios, asistencia, rendimiento, informes y mensajería).
+  const [directory, setDirectory] = useState<User[]>([]);
+  const [unreadMessages, setUnreadMessages] = useState(0);
+  const [academicReloadKey, setAcademicReloadKey] = useState(0);
+  const [courseList, setCourseList] = useState<DashboardCourse[]>([]);
+
+  const loadDirectory = useCallback(() => {
+    directoryService.listUsers().then(setDirectory).catch(() => setDirectory([]));
+  }, []);
+
+  useEffect(() => {
+    loadDirectory();
+    if (user) {
+      schoolService
+        .getInbox(user.id)
+        .then((inbox) => setUnreadMessages(inbox.filter((m) => !m.read).length))
+        .catch(() => setUnreadMessages(0));
+    }
+  }, [loadDirectory, user]);
+
+  useEffect(() => {
+    schoolService.getCourses().then(setCourseList).catch(() => setCourseList([]));
+  }, [academicReloadKey]);
+
+  const navBadge = (key: AdminNavKey | undefined): number | null => {
+    if (key === 'usuarios') return directory.filter((u) => !u.activo).length || null;
+    if (key === 'mensajeria') return unreadMessages || null;
+    return null;
+  };
+
+  const toggleUserActive = async (target: User): Promise<void> => {
+    const updated = await directoryService.setActive(target.id, !target.activo);
+    setDirectory((list) => list.map((u) => (u.id === updated.id ? { ...u, activo: updated.activo } : u)));
+  };
+
+  const exportGeneralReport = (): void => {
+    downloadCsv(
+      `classflow-reporte-${new Date().toISOString().slice(0, 10)}.csv`,
+      ['Sección', 'Indicador', 'Valor', 'Detalle'],
+      [
+        ...stats.map((s) => ['Resumen', s.label, s.value, s.trend]),
+        ...courseAttendance.map((c) => ['Asistencia por curso', c.name, `${c.pct}%`, '']),
+        ...alerts.map((a) => ['Alertas', a.text, '', a.severity]),
+      ]
+    );
+  };
+
+  /** Vistas que no dependen del BFF del panel (cargan sus propios datos). */
+  const isStandaloneView = activeNav !== 'dashboard' && activeNav !== 'asistencia';
+  const renderStandaloneView = (): React.ReactNode => {
+    switch (activeNav) {
+      case 'usuarios':
+        return <AdminUsersView users={directory} currentUserId={user?.id} onToggleActive={toggleUserActive} />;
+      case 'academica':
+        return <AdminAcademicView reloadKey={academicReloadKey} />;
+      case 'mensajeria':
+        return user ? <MessagingPanel currentUserId={user.id} recipients={directory} courses={courseList} /> : null;
+      case 'informes':
+        return <AdminReportsView users={directory} />;
+      case 'rendimiento':
+        return <AdminPerformanceView users={directory} />;
+      case 'configuracion':
+        return <AdminSettingsView user={user} />;
+      default:
+        return null;
+    }
+  };
 
   const [showModal, setShowModal] = useState(false);
   const [showCourseModal, setShowCourseModal] = useState(false);
@@ -195,6 +298,7 @@ export const AdminDashboard: React.FC = () => {
 
       setLocalUsers((prev) => [newUser, ...prev]);
       closeModal();
+      loadDirectory();
       await refetch();
     } catch (err) {
       setFormError(getErrorMessage(err, 'Error al crear el usuario'));
@@ -228,6 +332,7 @@ export const AdminDashboard: React.FC = () => {
       });
 
       setShowCourseModal(false);
+      setAcademicReloadKey((key) => key + 1);
       await refetch();
     } catch (err) {
       setCourseFormError(getErrorMessage(err, 'Error al crear el curso'));
@@ -256,6 +361,7 @@ export const AdminDashboard: React.FC = () => {
               {section.items.map((item) => {
                 const navKey = NAV_KEY_BY_LABEL[item.label];
                 const isActive = navKey ? navKey === activeNav : false;
+                const badge = navBadge(navKey);
                 return (
                   <a
                     key={item.label}
@@ -268,7 +374,7 @@ export const AdminDashboard: React.FC = () => {
                   >
                     <span className="admin-nav-icon">{item.icon}</span>
                     <span>{item.label}</span>
-                    {item.badge !== null && <span className="admin-nav-badge">{item.badge}</span>}
+                    {badge !== null && <span className="admin-nav-badge">{badge}</span>}
                   </a>
                 );
               })}
@@ -304,7 +410,14 @@ export const AdminDashboard: React.FC = () => {
             </p>
           </div>
           <div className="admin-header-actions">
-            <button className="admin-btn admin-btn--secondary">⬇ Exportar reporte</button>
+            <button
+              className="admin-btn admin-btn--secondary"
+              onClick={exportGeneralReport}
+              disabled={loading}
+              title="Descarga el resumen del panel en CSV"
+            >
+              ⬇ Exportar reporte
+            </button>
             <button className="admin-btn admin-btn--secondary" onClick={openCourseModal}>
               + Nuevo curso
             </button>
@@ -314,49 +427,12 @@ export const AdminDashboard: React.FC = () => {
           </div>
         </header>
 
-        {error && <ErrorState message={error} onRetry={refetch} />}
+        {isStandaloneView && renderStandaloneView()}
 
-        {loading ? (
+        {!isStandaloneView && error && <ErrorState message={error} onRetry={refetch} />}
+
+        {!isStandaloneView && (loading ? (
           <Loading size="lg" message="Cargando datos reales del BFF..." />
-        ) : activeNav === 'usuarios' ? (
-          <section className="admin-card">
-            <div className="admin-card-header">
-              <h2 className="admin-card-title">Todos los usuarios</h2>
-            </div>
-            <table className="admin-table">
-              <thead>
-                <tr>
-                  <th>Nombre</th>
-                  <th>Rol</th>
-                  <th>Estado</th>
-                  <th>Último acceso</th>
-                </tr>
-              </thead>
-              <tbody>
-                {mergedUsers.length > 0 ? (
-                  mergedUsers.map((u, index) => (
-                    <tr key={`${u.name}-${index}`}>
-                      <td>{u.name}</td>
-                      <td>
-                        <span className={`admin-badge ${u.rolClass}`}>{u.rol}</span>
-                      </td>
-                      <td>
-                        <span className={`admin-badge ${u.estadoClass}`}>{u.estado}</span>
-                        {u.estado === 'Pendiente' && <button className="admin-approve-btn">Aprobar</button>}
-                      </td>
-                      <td className="admin-table-muted">{u.acceso}</td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan={4} className="admin-table-muted">
-                      No hay usuarios recientes para mostrar.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </section>
         ) : activeNav === 'asistencia' ? (
           <section className="admin-card">
             <div className="admin-card-header">
@@ -432,7 +508,6 @@ export const AdminDashboard: React.FC = () => {
                           </td>
                           <td>
                             <span className={`admin-badge ${u.estadoClass}`}>{u.estado}</span>
-                            {u.estado === 'Pendiente' && <button className="admin-approve-btn">Aprobar</button>}
                           </td>
                           <td className="admin-table-muted">{u.acceso}</td>
                         </tr>
@@ -482,8 +557,8 @@ export const AdminDashboard: React.FC = () => {
               <section className="admin-card">
                 <div className="admin-card-header">
                   <h2 className="admin-card-title">Actividad reciente</h2>
-                  <a href="#" className="admin-card-link">
-                    Ver todos →
+                  <a href="#" className="admin-card-link" onClick={(e) => { e.preventDefault(); setActiveNav('informes'); }}>
+                    Informes →
                   </a>
                 </div>
                 <ul className="admin-activity-list">
@@ -509,8 +584,8 @@ export const AdminDashboard: React.FC = () => {
 
               <section className="admin-card">
                 <div className="admin-card-header">
-                  <h2 className="admin-card-title">Alertas de gestionar</h2>
-                  <a href="#" className="admin-card-link">
+                  <h2 className="admin-card-title">Alertas por gestionar</h2>
+                  <a href="#" className="admin-card-link" onClick={(e) => { e.preventDefault(); setActiveNav('asistencia'); }}>
                     Gestionar →
                   </a>
                 </div>
@@ -520,7 +595,7 @@ export const AdminDashboard: React.FC = () => {
                       <li key={alert.id} className="admin-alert-item">
                         <span className="admin-alert-icon">⚠</span>
                         <p className="admin-alert-text">{alert.text}</p>
-                        <a href="#" className="admin-alert-link">
+                        <a href="#" className="admin-alert-link" onClick={(e) => { e.preventDefault(); setActiveNav('asistencia'); }}>
                           Ver
                         </a>
                       </li>
@@ -535,7 +610,7 @@ export const AdminDashboard: React.FC = () => {
               </section>
             </div>
           </>
-        )}
+        ))}
       </main>
 
       {showModal && (

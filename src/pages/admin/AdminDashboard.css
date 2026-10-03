@@ -724,3 +724,60 @@
   .admin-main { padding: 1rem; }
   .admin-stats { grid-template-columns: 1fr 1fr; }
 }
+/* ── /* ── Vistas del panel ──────────────────────────────────────── */
+.admin-row-selectable {
+  cursor: pointer;
+}
+
+.admin-row-selectable:hover td {
+  background: #faf5ff;
+}
+
+.admin-row-selected td {
+  background: #ede9fe;
+}
+
+.admin-plain-list {
+  margin: 0;
+  padding-left: 1.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  font-size: 0.875rem;
+}
+
+.admin-report-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.admin-report-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.85rem 0;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.admin-report-list p {
+  margin: 0.2rem 0 0;
+}
+
+.admin-definition-list {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0.6rem 1.25rem;
+  margin: 0;
+  font-size: 0.875rem;
+}
+
+.admin-definition-list dt {
+  color: #64748b;
+}
+
+.admin-definition-list dd {
+  margin: 0;
+  color: #0f172a;
+}
