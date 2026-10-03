@@ -72,7 +72,8 @@ class PortalService {
       evaluations,
       grades,
       attendances,
-      annotations,
+      // ms-assistance borra anotaciones de forma lógica (active=false) pero las sigue devolviendo.
+      annotations: annotations.filter((a) => a.active !== false),
       // Avisos generales (sin curso) y los del curso del estudiante.
       announcements: announcements.filter((a) => a.courseId == null || a.courseId === course?.id),
       messages,

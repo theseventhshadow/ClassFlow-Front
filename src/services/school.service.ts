@@ -107,8 +107,10 @@ class SchoolService {
       : apiService.post('/attendance/register', entry);
   }
 
-  getAnnotationsByStudent(studentId: number): Promise<DashboardAnnotation[]> {
-    return apiService.get(`/annotations/student/${studentId}`);
+  /** Solo anotaciones vigentes: el borrado de ms-assistance es lógico (active=false). */
+  async getAnnotationsByStudent(studentId: number): Promise<DashboardAnnotation[]> {
+    const annotations = await apiService.get<DashboardAnnotation[]>(`/annotations/student/${studentId}`);
+    return annotations.filter((a) => a.active !== false);
   }
 
   createAnnotation(annotation: NewAnnotation): Promise<DashboardAnnotation> {
