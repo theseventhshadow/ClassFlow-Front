@@ -4,8 +4,12 @@ import react from '@vitejs/plugin-react'
 import path from 'path'
 
 export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, process.cwd(), '')
   // Backend al que el servidor de desarrollo redirige /api (no se expone al navegador).
-  const apiProxyTarget = loadEnv(mode, process.cwd(), '').API_PROXY_TARGET || 'http://localhost:8080'
+  const apiProxyTarget = env.API_PROXY_TARGET || 'http://localhost:8080'
+  // El login con Microsoft vuelve a VITE_MSAL_REDIRECT_URI: el servidor usa ese mismo puerto.
+  const redirectPort = env.VITE_MSAL_REDIRECT_URI ? new URL(env.VITE_MSAL_REDIRECT_URI).port : ''
+  const port = Number(env.PORT || redirectPort || 3000)
 
   return {
     plugins: [react()],
@@ -48,7 +52,9 @@ export default defineConfig(({ mode }) => {
       },
     },
     server: {
-      port: 3000,
+      port,
+      // Si el puerto está ocupado, fallar en vez de cambiar de puerto y romper el login con Microsoft.
+      strictPort: true,
       proxy: {
         '/api': {
           target: apiProxyTarget,
